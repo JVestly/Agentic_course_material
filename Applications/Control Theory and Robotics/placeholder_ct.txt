@@ -1,0 +1,1 @@
+Ideas will be based on the doc "Applications in RL"
