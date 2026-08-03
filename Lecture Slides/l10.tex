@@ -1,0 +1,745 @@
+\documentclass[10pt, aspectratio=169]{beamer}
+
+% --- Theme and Visual Styling (UiO Physics Aesthetic) ---
+\usetheme{Madrid}
+\usecolortheme{whale}
+
+\definecolor{uioblue}{RGB}{0, 43, 73}
+\definecolor{uiodark}{RGB}{20, 30, 45}
+\definecolor{uioaccent}{RGB}{180, 35, 35}
+
+\setbeamercolor{structure}{fg=uioblue}
+\setbeamercolor{titlelike}{parent=structure, bg=uioblue, fg=white}
+\setbeamercolor{frametitle}{bg=uioblue, fg=white}
+\setbeamercolor{block title}{bg=uioblue, fg=white}
+\setbeamercolor{block body}{bg=gray!10, fg=black}
+
+\setbeamertemplate{navigation symbols}{}
+\setbeamertemplate{footline}[text line]{%
+  \parbox{\linewidth}{\vspace*{-8pt}\textcolor{gray}{\small FYS4411: Reinforcement Learning and Agentic AI \hfill Slide \insertframenumber\,/\,\inserttotalframenumber}}
+}
+
+% --- Packages ---
+\usepackage{amsmath, amssymb, amsthm}
+\usepackage{bm}
+\usepackage{booktabs}
+\usepackage{tikz}
+\usetikzlibrary{shapes, arrows.meta, positioning}
+
+% --- Metadata ---
+\title[FYS4411: RL to Agentic AI]{From Reinforcement Learning to Agentic AI}
+\subtitle{Interaction, Tools, Memory, and Scientific Discovery}
+\author[FYS4411]{Department of Physics}
+\institute[UiO]{University of Oslo}
+\date{2026}
+
+\begin{document}
+
+% ==========================================
+% TITLE & INTRODUCTION
+% ==========================================
+
+\begin{frame}
+  \titlepage
+\end{frame}
+
+\begin{frame}{Motivation \& Conceptual Scope}
+  \begin{block}{Reinforcement Learning Perspective}
+    Reinforcement learning (RL) provides a mathematically rigorous language for sequential decision-making under uncertainty: an agent observes state $S_t$, selects action $A_t$, receives scalar feedback $R_{t+1}$, and transitions to $S_{t+1}$.
+  \end{block}
+
+  \begin{block}{Agentic AI Extension}
+    Agentic AI extends this interactive state-action paradigm to compound systems built around foundation models that manipulate context windows, invoke software tools, execute code, query vector databases, and drive scientific workflows.
+  \end{block}
+
+  \begin{itemize}
+    \item \textbf{Core Objective}: Identify the direct mathematical and structural continuity between RL foundations and modern compound agent architectures without relying on superficial AI buzzwords.
+  \end{itemize}
+\end{frame}
+
+\begin{frame}{Learning Objectives}
+  By the end of this lecture, you will be able to:
+  \begin{enumerate}
+    \item \textbf{Formalize Sequential Decision Making}: Define state $\mathcal{S}$, observation $\mathcal{O}$, action $\mathcal{A}$, transition kernel $p$, return $G_t$, and value functions in both standard RL and agentic settings.
+    \item \textbf{Derive Core RL Algorithms}: Contrast Dynamic Programming, Temporal-Difference methods, Policy Gradients, PPO, and Bayesian RL.
+    \item \textbf{Bridge RL to Agentic Loops}: Map context windows to non-Markovian states, autoregressive generation to structured actions, and program outputs to environment feedback.
+    \item \textbf{Analyze Scientific Workflows}: Critique closed-loop discovery architectures (e.g., Virtual Lab, AI Scientist) and evaluate failure modes, verification boundaries, and epistemic risks.
+  \end{enumerate}
+\end{frame}
+
+\begin{frame}{Lecture Roadmap}
+  \tableofcontents
+\end{frame}
+
+% ==========================================
+% PART I: REINFORCEMENT LEARNING FOUNDATIONS
+% ==========================================
+\section{Part I: Reinforcement Learning Foundations}
+
+\begin{frame}{Fixed-Data Learning vs. Interactive Learning}
+  \begin{columns}
+    \column{0.48\textwidth}
+    \begin{block}{Fixed-Data Setting (Supervised)}
+      \begin{itemize}
+        \item Dataset $\mathcal{D} = \{(x_i, y_i)\}_{i=1}^N \sim P(X, Y)$ is static.
+        \item Empirical Risk Minimization:
+          $$\theta^* = \arg\min_\theta \frac{1}{N} \sum_{i=1}^N l(f_\theta(x_i), y_i)$$
+        \item Parameters $\theta$ affect predictions, but \textbf{do not change} data generation.
+      \end{itemize}
+    \end{block}
+
+    \column{0.48\textwidth}
+    \begin{block}{Interactive Setting (RL)}
+      \begin{itemize}
+        \item Policy $\pi_\theta(a|s) = \mathbb{P}(A_t = a \mid S_t = s)$.
+        \item Sequential loop: $S_t \mapsto A_t \mapsto (R_{t+1}, S_{t+1})$.
+        \item Actions actively alter future state observations:
+          $$\text{Data distribution } P_\pi(\tau) \text{ depends on } \theta.$$
+      \end{itemize}
+    \end{block}
+  \end{columns}
+\end{frame}
+
+\begin{frame}{Markov Decision Processes (MDPs)}
+  A Markov Decision Process is defined by the 6-tuple $(\mathcal{S}, \mathcal{A}, \mathcal{R}, p, \gamma, \mu_0)$:
+  \begin{itemize}
+    \item $\mathcal{S}$: State space; $\mathcal{A}$: Action space; $\mathcal{R} \subseteq \mathbb{R}$: Reward space.
+    \item $p(s', r \mid s, a) = \mathbb{P}(S_{t+1} = s', R_{t+1} = r \mid S_t = s, A_t = a)$: Environment transition kernel.
+    \item $\gamma \in [0, 1)$: Discount factor; $\mu_0(s)$: Initial state distribution.
+  \end{itemize}
+
+  \begin{block}{The Markov Property}
+    $$\mathbb{P}(S_{t+1}=s', R_{t+1}=r \mid S_t, A_t, S_{t-1}, A_{t-1}, \dots, S_0, A_0) = p(s', r \mid S_t, A_t)$$
+    The current state $S_t$ contains all historical information required to predict future transitions.
+  \end{block}
+\end{frame}
+
+\begin{frame}{Trajectory Distribution \& Optimization Objective}
+  \begin{block}{Trajectory Probability Law}
+    For a trajectory $\tau = (S_0, A_0, R_1, S_1, A_1, R_2, \dots, S_T)$, the joint probability density under policy $\pi$ is:
+    $$\mathbb{P}_\pi(\tau) = \mu_0(s_0) \prod_{t=0}^{T-1} \pi(a_t \mid s_t) \, p(s_{t+1}, r_{t+1} \mid s_t, a_t)$$
+  \end{block}
+
+  \begin{block}{Discounted Return \& RL Objective}
+    \begin{itemize}
+      \item Return random variable: $G_t = \sum_{k=0}^{\infty} \gamma^k R_{t+k+1}$.
+      \item Expected return objective to maximize:
+        $$J(\pi) = \mathbb{E}_{\tau \sim \mathbb{P}_\pi}[G_0] = \int G_0(\tau) \, \mathrm{d}\mathbb{P}_\pi(\tau)$$
+    \end{itemize}
+  \end{block}
+\end{frame}
+
+\begin{frame}{State-Value and Action-Value Functions}
+  \begin{block}{State-Value Function $v_\pi(s)$}
+    Expected return starting from state $s$ under policy $\pi$:
+    $$v_\pi(s) = \mathbb{E}_\pi [G_t \mid S_t = s]$$
+  \end{block}
+
+  \begin{block}{Action-Value Function $q_\pi(s, a)$}
+    Expected return starting from state $s$, taking action $a$, and thereafter following policy $\pi$:
+    $$q_\pi(s, a) = \mathbb{E}_\pi [G_t \mid S_t = s, A_t = a]$$
+  \end{block}
+
+  \begin{block}{Fundamental Identity}
+    $$v_\pi(s) = \sum_{a \in \mathcal{A}} \pi(a \mid s) q_\pi(s, a)$$
+  \end{block}
+\end{frame}
+
+\begin{frame}{Bellman Expectation Equations}
+  By expanding $G_t = R_{t+1} + \gamma G_{t+1}$ and taking conditional expectations:
+
+  \begin{block}{State-Value Bellman Expectation Equation}
+    $$v_\pi(s) = \sum_{a \in \mathcal{A}} \pi(a \mid s) \sum_{s', r} p(s', r \mid s, a) \left[ r + \gamma v_\pi(s') \right]$$
+  \end{block}
+
+  \begin{block}{Action-Value Bellman Expectation Equation}
+    $$q_\pi(s, a) = \sum_{s', r} p(s', r \mid s, a) \left[ r + \gamma \sum_{a'} \pi(a' \mid s') q_\pi(s', a') \right]$$
+  \end{block}
+\end{frame}
+
+\begin{frame}{Optimal Value Functions \& Bellman Optimality}
+  \begin{block}{Optimal Values}
+    $$v_*(s) = \max_\pi v_\pi(s) \quad \text{and} \quad q_*(s, a) = \max_\pi q_\pi(s, a)$$
+  \end{block}
+
+  \begin{block}{Bellman Optimality Equations}
+    $$v_*(s) = \max_{a \in \mathcal{A}} \sum_{s', r} p(s', r \mid s, a) \left[ r + \gamma v_*(s') \right]$$
+    $$q_*(s, a) = \sum_{s', r} p(s', r \mid s, a) \left[ r + \gamma \max_{a' \in \mathcal{A}} q_*(s', a') \right]$$
+  \end{block}
+  \textbf{Optimal Policy}: $\pi^*(s) = \arg\max_{a \in \mathcal{A}} q_*(s, a)$.
+\end{frame}
+
+\begin{frame}{Dynamic Programming: Planning with Known Models}
+  Assumes full access to transition dynamics $p(s', r \mid s, a)$.
+
+  \begin{itemize}
+    \item \textbf{Policy Evaluation}: Iteratively apply Bellman expectation operator:
+      $$v_{k+1}(s) \leftarrow \sum_a \pi(a|s) \sum_{s',r} p(s',r|s,a)[r + \gamma v_k(s')]$$
+    \item \textbf{Policy Improvement}: Form greedy policy $\pi'(s) \leftarrow \arg\max_a q_{\pi}(s,a)$.
+    \item \textbf{Value Iteration}: Direct fixed-point contraction on Bellman optimality operator:
+      $$v_{k+1}(s) \leftarrow \max_{a \in \mathcal{A}} \sum_{s', r} p(s', r \mid s, a) [r + \gamma v_k(s')]$$
+  \end{itemize}
+  \textit{Limitation}: Demands exact summation over $\mathcal{S}$; intractable for large continuous spaces.
+\end{frame}
+
+\begin{frame}{Model-Free Learning: Monte Carlo (MC) Methods}
+  Replaces model expectation over transitions with empirical sample trajectories.
+
+  \begin{block}{Monte Carlo State-Value Update}
+    Evaluates $v_\pi(s)$ using complete realized episode returns $G_t$:
+    $$V(S_t) \leftarrow V(S_t) + \alpha \left[ G_t - V(S_t) \right]$$
+  \end{block}
+
+  \begin{itemize}
+    \item \textbf{Unbiased Estimator}: $\mathbb{E}[G_t \mid S_t = s] = v_\pi(s)$.
+    \item \textbf{High Variance}: Stochasticity accumulates over entire episode trajectory.
+    \item \textbf{Offline Execution}: Updates require waiting for episodic completion.
+  \end{itemize}
+\end{frame}
+
+\begin{frame}{Model-Free Learning: Temporal-Difference (TD) Learning}
+  Bootstraps value targets using immediate reward and one-step state predictions.
+
+  \begin{block}{One-Step TD Update: TD(0)}
+    $$V(S_t) \leftarrow V(S_t) + \alpha \underbrace{\left[ R_{t+1} + \gamma V(S_{t+1}) - V(S_t) \right]}_{\text{TD Error } \delta_t}$$
+  \end{block}
+
+  \begin{table}
+    \small
+    \begin{tabular}{lll}
+      \toprule
+      \textbf{Property} & \textbf{Monte Carlo (MC)} & \textbf{Temporal-Difference (TD)} \\
+      \midrule
+      Update Target & Full return $G_t$ & One-step target $R_{t+1} + \gamma V(S_{t+1})$ \\
+      Bias / Variance & Unbiased, High Variance & Biased, Lower Variance \\
+      Online Learning & Requires full episode completion & Updates online step-by-step \\
+      \bottomrule
+    \end{tabular}
+  \end{table}
+\end{frame}
+
+\begin{frame}{TD Control: On-Policy SARSA vs. Off-Policy Q-Learning}
+  \begin{block}{SARSA (On-Policy TD Control)}
+    Updates action-value using next action $A_{t+1}$ sampled from current behavior policy $\pi$:
+    $$Q(S_t, A_t) \leftarrow Q(S_t, A_t) + \alpha \left[ R_{t+1} + \gamma Q(S_{t+1}, A_{t+1}) - Q(S_t, A_t) \right]$$
+  \end{block}
+
+  \begin{block}{Q-Learning (Off-Policy TD Control)}
+    Bootstraps using target max operator over action space, independent of executed action:
+    $$Q(S_t, A_t) \leftarrow Q(S_t, A_t) + \alpha \left[ R_{t+1} + \gamma \max_{a} Q(S_{t+1}, a) - Q(S_t, A_t) \right]$$
+  \end{block}
+\end{frame}
+
+\begin{frame}{Function Approximation \& Deep Q-Networks (DQN)}
+  For continuous state spaces, approximate $q_*(s, a) \approx Q(s, a; w)$ via neural networks.
+
+  \begin{block}{DQN Mean-Squared Bellman Loss}
+    $$L(w) = \mathbb{E}_{(s, a, r, s') \sim \mathcal{D}} \left[ \left( r + \gamma \max_{a'} Q(s', a'; w^-) - Q(s, a; w) \right)^2 \right]$$
+  \end{block}
+
+  \begin{itemize}
+    \item \textbf{Experience Replay $\mathcal{D}$}: Mini-batch sampling breaks temporal sample correlation.
+    \item \textbf{Target Network $w^-$}: Holds target parameters stable to prevent deadly triad divergence.
+  \end{itemize}
+\end{frame}
+
+\begin{frame}{Policy Gradient Methods \& REINFORCE}
+  Directly parametrize policy $\pi_\theta(a|s) = \mathbb{P}_\theta(A_t=a \mid S_t=s)$.
+
+  \begin{block}{Policy Gradient Theorem}
+    $$\nabla_\theta J(\theta) = \mathbb{E}_{\pi_\theta} \left[ \nabla_\theta \log \pi_\theta(A_t \mid S_t) \, Q^{\pi_\theta}(S_t, A_t) \right]$$
+  \end{block}
+
+  \begin{block}{REINFORCE (Monte Carlo Policy Gradient)}
+    Replaces $Q^{\pi_\theta}(S_t, A_t)$ with trajectory return $G_t$:
+    $$\theta \leftarrow \theta + \alpha \gamma^t G_t \nabla_\theta \log \pi_\theta(A_t \mid S_t)$$
+  \end{block}
+\end{frame}
+
+\begin{frame}{Actor-Critic Architectures \& Advantage Functions}
+  Replaces high-variance return $G_t$ with baseline critic value function $v_\phi(s)$.
+
+  \begin{itemize}
+    \item \textbf{Advantage Function}: $A^\pi(s, a) = q_\pi(s, a) - v_\pi(s)$.
+    \item \textbf{TD Advantage Estimate}: $\delta_t = R_{t+1} + \gamma v_\phi(S_{t+1}) - v_\phi(S_t)$.
+  \end{itemize}
+
+  \begin{block}{Actor-Critic Parameter Updates}
+    $$\text{\textbf{Actor}: } \theta \leftarrow \theta + \alpha_\theta \nabla_\theta \log \pi_\theta(A_t \mid S_t) \delta_t$$
+    $$\text{\textbf{Critic}: } \phi \leftarrow \phi + \alpha_\phi \delta_t \nabla_\phi v_\phi(S_t)$$
+  \end{block}
+\end{frame}
+
+\begin{frame}{Proximal Policy Optimization (PPO)}
+  Prevents performance collapse by clipping policy probability ratio updates.
+
+  \begin{block}{Importance Sampling Ratio}
+    $$r_t(\theta) = \frac{\pi_\theta(A_t \mid S_t)}{\pi_{\theta_{\text{old}}}(A_t \mid S_t)}$$
+  \end{block}
+
+  \begin{block}{PPO Clipped Surrogate Objective}
+    $$L^{\text{CLIP}}(\theta) = \hat{\mathbb{E}}_t \left[ \min \left( r_t(\theta) \hat{A}_t, \, \text{clip}(r_t(\theta), 1-\epsilon, 1+\epsilon) \hat{A}_t \right) \right]$$
+  \end{block}
+  Restricts updates to trust region, enabling stable training in complex environments.
+\end{frame}
+
+\begin{frame}{Bayesian Reinforcement Learning}
+  Maintains explicit belief distributions over environment transition models $M = (p, r)$.
+
+  \begin{block}{Posterior Belief Update}
+    $$P(M \mid \mathcal{D}_t) = \frac{P(\mathcal{D}_t \mid M) P(M)}{P(\mathcal{D}_t)}$$
+    where $\mathcal{D}_t = (S_0, A_0, R_1, \dots, S_t)$ represents interaction history.
+  \end{block}
+
+  \begin{itemize}
+    \item \textbf{Aleatoric Uncertainty}: Irreducible stochasticity in transition dynamics $p(s'|s,a)$.
+    \item \textbf{Epistemic Uncertainty}: Parameter variance due to sparse sampling; reducible via targeted interaction.
+  \end{itemize}
+\end{frame}
+
+\begin{frame}{Uncertainty-Guided Exploration: Thompson Sampling \& UCB}
+  \begin{block}{Posterior Sampling (Thompson Sampling)}
+    \begin{enumerate}
+      \item Sample transition model $M^{(t)} \sim P(M \mid \mathcal{D}_t)$ from posterior belief.
+      \item Compute optimal policy $\pi^*$ for sampled model $M^{(t)}$.
+      \item Execute $A_t = \pi^*(S_t)$ and update posterior with observed transition.
+    \end{enumerate}
+  \end{block}
+
+  \begin{block}{Upper Confidence Bound (UCB1)}
+    $$A_t = \arg\max_{a \in \mathcal{A}} \left[ \hat{Q}(S_t, a) + c \sqrt{\frac{\ln t}{N(S_t, a)}} \right]$$
+  \end{block}
+\end{frame}
+
+\begin{frame}{Reward Shaping Pitfalls: The Pokémon Red Case Study}
+  \begin{block}{Case Study: Reward Hacking in Pokémon Red}
+    \begin{itemize}
+      \item An agent trained using dense novelty rewards discovered an unintended local optimum: it looped infinitely inside a room admiring animated background graphics.
+      \item Periodic tile animations generated continuous novelty signals, yielding higher cumulative reward than attempting risky battle progression.
+    \end{itemize}
+  \end{block}
+  \textbf{Core Takeaway}: Optimization algorithms aggressively exploit flaws in reward design. In scientific domains, unverified scalar proxies lead to invalid behavior.
+\end{frame}
+
+\begin{frame}{Summary of RL Foundations}
+  \begin{table}
+    \small
+    \begin{tabular}{lll}
+      \toprule
+      \textbf{Concept} & \textbf{Mathematical Formulation} & \textbf{Functional Role} \\
+      \midrule
+      MDP Kernel & $p(s', r \mid s, a)$ & Environment stochastic dynamics \\
+      Bellman Optimality & $v_*(s) = \max_a \mathbb{E}[R_{t+1} + \gamma v_*(S_{t+1})]$ & Formal planning benchmark \\
+      TD Error & $\delta_t = R_{t+1} + \gamma V(S_{t+1}) - V(S_t)$ & One-step sample credit assignment \\
+      Policy Gradient & $\nabla_\theta J(\theta) = \mathbb{E}[\nabla_\theta \log \pi_\theta(a|s) Q(s,a)]$ & Continuous parameter optimization \\
+      Bayesian Posterior & $P(M \mid \mathcal{D}_t) \propto P(\mathcal{D}_t \mid M) P(M)$ & Rational decision making under uncertainty \\
+      \bottomrule
+    \end{tabular}
+  \end{table}
+\end{frame}
+
+% ==========================================
+% PART II: THE BRIDGE FROM RL TO AGENTIC AI
+% ==========================================
+\section{Part II: The Conceptual Bridge from RL to Agentic AI}
+
+\begin{frame}{Transitioning from Scalar RL to Foundation Model Agents}
+  \begin{columns}
+    \column{0.48\textwidth}
+    \begin{block}{Classical RL Loop}
+      \begin{itemize}
+        \item State: Numerical vector $S_t \in \mathbb{R}^d$.
+        \item Action: Fixed index $A_t \in \{1,\dots,K\}$.
+        \item Feedback: Scalar reward $R_{t+1} \in \mathbb{R}$.
+      \end{itemize}
+    \end{block}
+
+    \column{0.48\textwidth}
+    \begin{block}{Agentic AI Loop}
+      \begin{itemize}
+        \item State: Rich context buffer $\mathcal{O}_t \in \Omega$.
+        \item Action: Token string / API payload $A_t \in \mathcal{V}^*$.
+        \item Feedback: Multi-modal execution outputs $\mathcal{F}_{t+1}$.
+      \end{itemize}
+    \end{block}
+  \end{columns}
+
+  \begin{block}{Core Paradigm Shift}
+    Foundation models extend policy representations $\pi_\theta$ to high-dimensional context generators capable of invoking computational tools and interacting with external environments.
+  \end{block}
+\end{frame}
+
+\begin{frame}{State Space Shift: Vector States to Context Windows}
+  \begin{block}{Classical State Vector $S_t \in \mathbb{R}^d$}
+    Structured numerical vectors engineered to satisfy the Markov property.
+  \end{block}
+
+  \begin{block}{Agentic Context Observation $\mathcal{O}_t \in \Omega$}
+    Unstructured, multi-modal context buffers: text documents, code repositories, execution traces, data tables, and user instructions.
+  \end{block}
+
+  \begin{block}{Effective Context History}
+    Raw observations $\mathcal{O}_t$ are non-Markovian. The agent relies on the accumulated context history $C_t = (\mathcal{O}_0, A_0, \mathcal{F}_1, \dots, \mathcal{O}_t)$ as its state representation inside a **Partially Observed MDP (POMDP)**.
+  \end{block}
+\end{frame}
+
+\begin{frame}{Action Space Shift: Action Vectors to Generative Tokens}
+  Classical action spaces $A_t \in \mathcal{A}$ map to autoregressive token generation sequences:
+  $$A_t = (y_1, y_2, \dots, y_K), \quad y_k \in \mathcal{V}$$
+
+  \begin{block}{System Interpretation of Generated Tokens}
+    \begin{itemize}
+      \item \textbf{Natural Text}: Natural language output for human interaction.
+      \item \textbf{Structured API Call}: JSON string payload (e.g., \texttt{\{"tool": "query\_db", "args": ...\}}).
+      \item \textbf{Executable Code}: Python/C++ script emitted for runtime evaluation.
+    \end{itemize}
+  \end{block}
+  Agentic AI begins when model outputs are parsed as actions with computational effects.
+\end{frame}
+
+\begin{frame}{Feedback Space Shift: Scalar Rewards to Execution Signals}
+  Classical scalar reward $R_{t+1} \in \mathbb{R}$ expands into heterogeneous execution feedback $\mathcal{F}_{t+1}$:
+
+  \begin{block}{Multi-Modal Execution Feedback}
+    \begin{enumerate}
+      \item \textbf{Runtime Streams}: Environment stdout, stderr, compiler errors, stack traces.
+      \item \textbf{Verifier Signals}: Unit test pass/fail results, mathematical verifier outputs.
+      \item \textbf{Physical Measurements}: Sensor values, spectrometer readings, lab assay results.
+    \end{enumerate}
+  \end{block}
+  Scalar rewards $R(C_t, A_t, \mathcal{F}_{t+1})$ can be constructed via Reward Models during fine-tuning (RLHF / RLAIF).
+\end{frame}
+
+\begin{frame}{Mathematical Formalization: The Agentic POMDP}
+  We formalize an Agentic System as a POMDP tuple $(\Omega, \mathcal{A}_{\text{tools}}, \mathcal{F}, T_{\text{env}}, \mathcal{O}_{\text{obs}}, \gamma)$:
+  \begin{itemize}
+    \item $\Omega$: Observation context space containing code, literature, and execution buffers.
+    \item $\mathcal{A}_{\text{tools}}$: Autoregressive tool-invocation action space over vocabulary $\mathcal{V}^*$.
+    \item $T_{\text{env}}(\mathcal{O}_{t+1}, \mathcal{F}_{t+1} \mid \mathcal{O}_t, A_t)$: Transition kernel governed by software interpreters, OS kernels, or laboratory hardware.
+  \end{itemize}
+
+  \begin{block}{Autoregressive Policy Mapping}
+    $$\pi_\theta(A_t \mid C_t) = \prod_{k=1}^K P_\theta(y_k \mid y_{<k}, C_t)$$
+  \end{block}
+\end{frame}
+
+\begin{frame}{Mapping Table: Classical RL vs. Agentic AI}
+  \begin{table}
+    \small
+    \begin{tabular}{lll}
+      \toprule
+      \textbf{Component} & \textbf{Classical Reinforcement Learning} & \textbf{Agentic AI Systems} \\
+      \midrule
+      State / Obs & Numerical vector $S_t \in \mathbb{R}^d$ & Context history $C_t = (\mathcal{O}_0, A_0, \mathcal{F}_1, \dots)$ \\
+      Action & Discrete/continuous vector $A_t$ & Token payload string / JSON API invocation \\
+      Policy & Parametrized network $\pi_\theta(a|s)$ & Foundation model decoder $\pi_\theta(a|c)$ \\
+      Environment & Physics simulator / MDP dynamics & Python REPL, OS shell, HPC cluster, Lab hardware \\
+      Feedback & Scalar reward $R_{t+1} \in \mathbb{R}$ & Compiler stdout/stderr, test results, verifier outputs \\
+      \bottomrule
+    \end{tabular}
+  \end{table}
+\end{frame}
+
+\begin{frame}{Agent Memory Architectures}
+  \begin{block}{Working Memory (Context Window)}
+    Short-term buffer $C_t$; bounded by maximum context limit $L_{\text{max}}$. Managed via active context truncation, sliding windows, and key-value caching.
+  \end{block}
+
+  \begin{block}{Episodic Memory}
+    Persistent cross-trajectory state updates: $M_t = f(M_{t-1}, \mathcal{O}_t)$.
+  \end{block}
+
+  \begin{block}{Non-Parametric External Memory (RAG)}
+    Vector database indexing document chunks $d_i \in \mathcal{D}_{\text{corpus}}$. Dynamic retrieval via similarity lookup $\text{Sim}(q(C_t), g(d_i))$.
+  \end{block}
+\end{frame}
+
+\begin{frame}{Retrieval-Augmented Generation (RAG) as Active Perception}
+  Retrieval is an explicit active perception action $A_t^{\text{ret}} = \text{\tt search\_query}$:
+
+  \begin{block}{Active Perception Interaction Loop}
+    \begin{enumerate}
+      \item Agent emits vector search query $q_t = f_{\text{query}}(C_t)$.
+      \item Vector database returns relevant top-$k$ document chunks $\{d_1, \dots, d_k\}$.
+      \item Context updates dynamically: $C_{t+1} = (C_t, \{d_i\})$.
+    \end{enumerate}
+  \end{block}
+  Extends knowledge access beyond static parametric weights $\theta$.
+\end{frame}
+
+\begin{frame}{Tool Execution Infrastructure \& Sandboxes}
+  \begin{enumerate}
+    \item \textbf{Action Generation}: Agent emits structured code payload:
+      $$\text{\tt A\_t = \{"tool": "python\_exec", "input": "import scipy..."\}}$$
+    \item \textbf{Execution Sandbox}: System intercepts payload, checks safety boundaries, and executes code inside isolated REPL container.
+    \item \textbf{Feedback Return}: Environment returns runtime outcome to context:
+      $$\text{\tt \mathcal{F}_{\text{t+1}} = \{"stdout": "0.8235", "exit\_code": 0\}}$$
+  \end{enumerate}
+  Grounding language models in execution tools eliminates numerical computation errors.
+\end{frame}
+
+\begin{frame}{Reasoning \& Planning: The ReAct Loop}
+  Interleaves explicit chain-of-thought reasoning with interactive tool execution:
+  $$\dots \to \text{Thought}_t \to \text{Action}_t \to \text{Observation}_{t+1} \to \text{Thought}_{t+1} \to \dots$$
+
+  \begin{block}{ReAct Trace Example}
+    \begin{itemize}
+      \item \textbf{Thought}: "I need to diagonalize the spin matrix $H$ to find energy levels."
+      \item \textbf{Action}: \texttt{exec\_python("import numpy as np; print(np.linalg.eigvalsh(H))")}
+      \item \textbf{Observation}: \texttt{array([-1.732, 0.0, 1.732])}
+      \item \textbf{Thought}: "The energy spectrum is symmetric. Proceeding to calculate partition function."
+    \end{itemize}
+  \end{block}
+\end{frame}
+
+\begin{frame}{Lookahead Search \& Planning: Tree-of-Thoughts \& MCTS}
+  \begin{block}{Tree-of-Thoughts (ToT)}
+    Branches context into search trees over candidate intermediate thoughts. Evaluates branches using heuristic evaluator functions.
+  \end{block}
+
+  \begin{block}{Monte Carlo Tree Search (MCTS) for Agents}
+    \begin{itemize}
+      \item Foundation model generates candidate rollout trajectories.
+      \item Value network / verifier assesses state quality.
+      \item Selection, Expansion, Simulation, and Backpropagation select optimal multi-step tool call sequences.
+    \end{itemize}
+  \end{block}
+\end{frame}
+
+\begin{frame}{Self-Correction \& In-Context Refinement Loops}
+  \begin{block}{Iterative Verification & Refinement}
+    \begin{enumerate}
+      \item \textbf{Generate}: Policy generates candidate code script $\hat{Y}_0$.
+      \item \textbf{Test}: Execution environment runs test suite, producing stdout/stderr trace $\mathcal{E}_0$.
+      \item \textbf{Refine}: Policy appends error log to context $C_1 = (C_0, \hat{Y}_0, \mathcal{E}_0)$ and generates updated script $\hat{Y}_1$.
+    \end{enumerate}
+  \end{block}
+  Converts open-loop generation into iterative in-context optimization.
+\end{frame}
+
+\begin{frame}{Monolithic Models vs. Compound AI Systems}
+  \begin{columns}
+    \column{0.48\textwidth}
+    \begin{block}{Monolithic LLM}
+      \begin{itemize}
+        \item Single neural parameter set $\theta$.
+        \item Handles reasoning, memory, and calculation within single generation call.
+        \item Prone to hallucinations and math errors.
+      \end{itemize}
+    \end{block}
+
+    \column{0.48\textwidth}
+    \begin{block}{Compound AI System}
+      \begin{itemize}
+        \item Modular architecture: LLM core + Vector DB + Code REPL + Verifier.
+        \item Coordinates specialized sub-modules dynamically.
+        \item Analogous to modular RL (actor, critic, memory, dynamics model).
+      \end{itemize}
+    \end{block}
+  \end{columns}
+\end{frame}
+
+\begin{frame}{Multi-Agent Systems: Functional Specialization}
+  Specialized agent instances coordinate across complex workflows:
+  \begin{itemize}
+    \item \textbf{Planning Agent}: Decomposes high-level objectives into computational sub-tasks.
+    \item \textbf{Coding Agent}: Implements and executes numeric analysis scripts.
+    \item \textbf{Literature Agent}: Queries vector repositories and extracts domain references.
+    \item \textbf{Referee / Critic Agent}: Validates statistical outputs and verifies logic constraints.
+  \end{itemize}
+\end{frame}
+
+\begin{frame}{Multi-Agent Orchestration Frameworks}
+  \begin{itemize}
+    \item \textbf{AutoGen}: Conversation-driven multi-agent orchestration operating via asynchronous event loops.
+    \item \textbf{LangGraph}: Cyclic state graphs defining explicit state transitions, agent nodes, and conditional branching logic.
+    \item \textbf{AIOS}: Agent Operating System managing LLM context scheduling, memory access, and tool permissions.
+  \end{itemize}
+  Multi-agent abstractions isolate software credit assignment across complex tasks.
+\end{frame}
+
+\begin{frame}{Summary of the RL $\to$ Agentic AI Bridge}
+  \begin{itemize}
+    \item \textbf{Theoretical Continuity}: Agentic AI represents sequential decision-making over non-Markovian context histories.
+    \item \textbf{Executable Actions}: Autoregressive token streams map to tool execution when coupled with runtime sandboxes.
+    \item \textbf{System Integration}: Modern agentic performance relies on compound systems integrating models, vector stores, REPLs, and verifiers.
+  \end{itemize}
+\end{frame}
+
+% ==========================================
+% PART III: AGENTIC AI FOR SCIENTIFIC DISCOVERY
+% ==========================================
+\section{Part III: Agentic AI for Scientific Discovery}
+
+\begin{frame}{Why Scientific Discovery Demands Agentic AI}
+  Scientific discovery requires interaction beyond static text processing:
+  \begin{itemize}
+    \item Executing numerical simulations (DFT, Molecular Dynamics, Finite Element Analysis).
+    \item Formulating novel hypotheses and testing them via code execution.
+    \item Controlling automated physical instrumentation in experimental laboratories.
+  \end{itemize}
+  Static foundation models suffer from domain hallucinations; scientific progress demands tool-grounded compound agent systems.
+\end{frame}
+
+\begin{frame}{The Closed-Loop Scientific Discovery Cycle}
+  \begin{block}{Autonomous Scientific Iteration}
+    $$\text{Hypothesis Generation} \longrightarrow \text{Experiment Design} \longrightarrow \text{Tool Execution} \longrightarrow \text{Data Analysis} \longrightarrow \text{Knowledge Model Update}$$
+  \end{block}
+  Autonomous scientific agents iteratively query literature, execute numerical code or physical runs, parse diagnostic outputs, and update context models.
+\end{frame}
+
+\begin{frame}{Agent Integration with Scientific Infrastructure}
+  \begin{itemize}
+    \item \textbf{Computational Layer}: Scientific Python (NumPy, SciPy, PyTorch), SLURM HPC cluster job execution.
+    \item \textbf{Data \& Literature Layer}: Parsing arXiv PDF papers, extracting tabular data into structured knowledge graphs.
+    \item \textbf{Physical Laboratory Layer}: Interfacing with automated liquid handlers, spectral diagnostics, and synthesis robots (Self-Driving Labs).
+  \end{itemize}
+\end{frame}
+
+\begin{frame}{Case Study 1: Computational Physics \& HPC Workflows}
+  \begin{block}{Automating High-Performance Computing Pipelines}
+    \begin{itemize}
+      \item \textbf{Configuration}: Agent writes input parameter scripts for electronic structure packages (e.g., VASP, Quantum ESPRESSO).
+      \item \textbf{Scheduling}: Submits batch jobs via SLURM commands (\texttt{sbatch}, \texttt{squeue}).
+      \item \textbf{Recovery}: Monitors runtime execution, detects out-of-memory or convergence failures, adjusts mesh resolution/time-steps, and restarts jobs automatically.
+    \end{itemize}
+  \end{block}
+\end{frame}
+
+\begin{frame}{Case Study 2: Symbolic Regression \& Mathematical Discovery}
+  \begin{block}{Discovering Analytical Laws from Raw Experimental Data}
+    \begin{itemize}
+      \item \textbf{Data Input}: Noisy physical time-series measurements $y(t)$.
+      \item \textbf{Tool Execution}: Agent interfaces with symbolic regression packages (e.g., PySR) and computer algebra systems (SymPy).
+      \item \textbf{Physics-Informed Constraints}: Enforces dimensional consistency, translational invariance, and conservation law constraints during expression search.
+    \end{itemize}
+  \end{block}
+\end{frame}
+
+\begin{frame}{Case Study 3: Virtual Lab \& Self-Driving Laboratories}
+  \begin{block}{Closed-Loop Materials Discovery Workflow}
+    \begin{enumerate}
+      \item \textbf{Screening}: Query literature databases for solid-state electrolyte candidates.
+      \item \textbf{Structure Generation}: Emit candidate crystal structure parameters (.cif files).
+      \item \textbf{Simulation}: Execute Density Functional Theory (DFT) calculations to evaluate ionic conductivity and formation energy.
+      \item \textbf{Optimization}: Refine structural parameter search space via Bayesian optimization.
+    \end{enumerate}
+  \end{block}
+\end{frame}
+
+\begin{frame}{Case Study 4: The AI Scientist (Automated Research)}
+  Full-loop automated machine learning research generation:
+  \begin{itemize}
+    \item \textbf{Ideation}: Proposes scientific hypotheses based on existing repository codebase.
+    \item \textbf{Experimentation}: Writes PyTorch execution scripts, conducts training runs, parses log files, and plots result figures.
+    \item \textbf{Manuscript Synthesis}: Compiles complete LaTeX research paper detailing methodology, figures, and theoretical discussion.
+    \item \textbf{Automated Peer Review}: Evaluates generated paper using simulated referee agent to enforce verification standards.
+  \end{itemize}
+\end{frame}
+
+\begin{frame}{Role Division in Scientific Multi-Agent Orchestration}
+  \begin{itemize}
+    \item \textbf{Principal Investigator Agent}: Maintains overarching research goals and coordinates agent workflows.
+    \item \textbf{Literature Specialist}: Performs literature synthesis and extracts prior empirical benchmarks.
+    \item \textbf{Simulation Engineer}: Implements, debugs, and runs HPC numerical simulations.
+    \item \textbf{Peer Reviewer Agent}: Validates statistical outputs, checks control baselines, and flags methodology errors.
+  \end{itemize}
+\end{frame}
+
+\begin{frame}{Human-in-the-Loop Scientific Oversight}
+  \begin{block}{Supervisory Control Pipeline}
+    $$\text{Agent Action Proposal} \longrightarrow \text{Automated Safety Filter} \longrightarrow \text{Human Expert Approval} \longrightarrow \text{Physical Lab Execution}$$
+  \end{block}
+  \begin{itemize}
+    \item Prevents hazardous chemical synthesis or destructive operating system API calls.
+    \item Preserves expert oversight at critical scientific decision checkpoints.
+  \end{itemize}
+\end{frame}
+
+\begin{frame}{Evaluating Scientific Agents: Beyond Static Benchmarks}
+  Standard text benchmarks (e.g., MMLU, GSM8K) fail to evaluate interactive agent capabilities.
+
+  \begin{block}{Execution-Based Evaluation Metrics}
+    \begin{itemize}
+      \item \textbf{Execution Success Rate}: Percentage of generated tool/code workflows that execute without runtime error.
+      \item \textbf{Trajectory Efficiency}: Context token usage and API step count per completed scientific sub-task.
+      \item \textbf{Self-Correction Robustness}: Autonomous recovery rate from runtime exceptions or physical diagnostic failures.
+    \end{itemize}
+  \end{block}
+\end{frame}
+
+\begin{frame}{Specialized Benchmarks: MLE-bench \& AI Agents That Matter}
+  \begin{block}{MLE-bench}
+    Evaluates agents on 75 Kaggle machine learning engineering competitions, testing end-to-end ML code execution, feature engineering, hyperparameter search, and submission validation.
+  \end{block}
+
+  \begin{block}{AI Agents That Matter}
+    Focuses on realistic execution environments requiring multi-step tool execution, persistent context planning, and strict compute constraints.
+  \end{block}
+\end{frame}
+
+\begin{frame}{Pathologies \& Failure Modes in Scientific Agents}
+  \begin{enumerate}
+    \item \textbf{Hallucination Cascades}: Unverified initial assumptions propagate across sub-tasks.
+    \item \textbf{Infinite Execution Loops}: Agent repeatedly executes failing code without altering logic.
+    \item \textbf{Environment Corruption}: Faulty script execution modifies disk directories or corrupts environment dependencies.
+    \item \textbf{Metric Exploitation (Reward Hacking)}: Agent alters evaluation benchmark code to inflate reported validation scores.
+  \end{enumerate}
+\end{frame}
+
+\begin{frame}{Epistemic Risks in AI Science (Messeri \& Crockett, Nature 2024)}
+  \begin{block}{Critical Epistemic Hazards}
+    \begin{itemize}
+      \item \textbf{Illusion of Explanatory Depth}: Confusing fluent, plausible natural language explanations with true physical understanding.
+      \item \textbf{Epistemic Monocultures}: Over-reliance on standardized foundation model weights narrowing the diversity of scientific hypotheses explored.
+      \item \textbf{Automation Bias}: Uncritically accepting agent-generated code, data analysis, or manuscript text without independent verification.
+    \end{itemize}
+  \end{block}
+\end{frame}
+
+\begin{frame}{Verification Boundaries \& Epistemic Caution}
+  \begin{block}{Enforcing Strict Verification Boundaries}
+    \begin{itemize}
+      \item \textbf{Rule}: Model outputs must never be accepted as scientific claims without external validation.
+      \item \textbf{Deterministic Verification}: Relying on compiler builds, symbolic algebra checks, automated unit test suites, and hardware reproducibility runs.
+      \item \textbf{Expert Review}: Human scientific experts must review and audit agent-derived claims before publication.
+    \end{itemize}
+  \end{block}
+\end{frame}
+
+\begin{frame}{Safety, Sandboxing, and Governance}
+  \begin{itemize}
+    \item \textbf{Execution Sandboxing}: Running agent code inside isolated Docker containers without root privileges or unmonitored network access.
+    \item \textbf{Tool Access Controls}: Restricting destructive file system access and unverified hardware execution.
+    \item \textbf{Trajectory Audit Logs}: Logging complete interaction histories $\tau = (\mathcal{O}_0, A_0, \mathcal{F}_1, \dots)$ to ensure scientific provenance and experimental reproducibility.
+  \end{itemize}
+\end{frame}
+
+\begin{frame}{The Road Ahead: Domain-Specific Foundation Models}
+  \begin{itemize}
+    \item Developing foundation models pre-trained on mathematical proofs, physical tensors, and molecular structures.
+    \item Hybrid neuro-symbolic architectures combining continuous neural representations with exact symbolic reasoning engines.
+    \item Unified reinforcement learning pipelines optimized directly via execution feedback from physical laboratory infrastructure.
+  \end{itemize}
+\end{frame}
+
+\begin{frame}{Summary of Lecture 10}
+  \begin{enumerate}
+    \item \textbf{RL Continuity}: Agentic AI extends RL principles of sequential decision-making to unstructured context spaces and execution feedback.
+    \item \textbf{Compound Systems}: Reasoning relies on orchestrating models, memory structures, execution sandboxes, and verifier engines.
+    \item \textbf{Scientific Discovery}: Closed-loop agent workflows accelerate literature synthesis, computational pipelines, and laboratory experimentation.
+    \item \textbf{Epistemic Rigor}: Maintaining scientific progress requires strict verification boundaries, human oversight, and safety sandboxing.
+  \end{enumerate}
+\end{frame}
+
+\begin{frame}{Selected Sources \& Motivating Literature}
+  \begin{thebibliography}{9}
+    \bibitem{sutton} Sutton, R. S., \& Barto, A. G. (2018). \textit{Reinforcement Learning: An Introduction}. MIT Press.
+    \bibitem{alsvik} Alsvik, A. S., \& Vestly, J. (2026). \textit{Introduction to Reinforcement Learning (FYS4411 Compendium)}. University of Oslo.
+    \bibitem{react} Yao, S., et al. (2022). \textit{ReAct: Synergizing Reasoning and Acting in Language Models}. arXiv:2210.03629.
+    \bibitem{messeri} Messeri, L., \& Crockett, M. J. (2024). \textit{Artificial intelligence and the illusion of understanding in scientific research}. Nature, 627, 49-58.
+    \bibitem{aiscientist} Lu, C., et al. (2024). \textit{The AI Scientist: Towards Fully Automated Open-Ended Scientific Discovery}. arXiv:2408.06292.
+  \end{thebibliography}
+\end{frame}
+
+\end{document}

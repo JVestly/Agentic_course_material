@@ -1,0 +1,23 @@
+\documentclass{article}
+\usepackage{graphicx} % Required for inserting images
+
+\title{The Master Plan}
+\author{Jørgen Vestly}
+\date{May 2026}
+
+\begin{document}
+
+\maketitle
+
+\section{Objective}
+Though the given thesis focused on classical and quantum machine learning methods, I would like to add a fault-tolerant component, and essentially making it the core of the thesis, and the former as mere test/application of QEC/Fault-tolerance. The goal is to consider the use of QECC and to test for its scalability on real quantum hardware, to perform computing and machine learning on either/or simulation or real hardware. I would like to investigate classical ML to build decoders (sweeping this part), and then the quantum machine learning is just an interesting application. Digging and looking for bottlenecks and limitations is essential. One must expect that the results can be mixed.\\\\ Overall motivation: QC/QML/Quantum Information Processing is flawed due to noisy computers, and classical simulators are incredibly slow. Hence, there is no point of testing QML models and comparing them to classical, let alone trying to pull something interesting out of them alone. Without error correction, the results will almost always be: classical scales better and is more reliable than quantum. QEC/QEM is universal and does not apply merely to quantum computers, but also quantum metrology- and communication systems.\\\\
+Brief mission statement: Implement QECC (by use of classical ML) to provide scalable and more reliable quantum information processing/quantum computing in real quantum devices (hopefully) and simulated environments. Find practical decoding strategies to make better use of the qubits in quantum systems, by coping with their fragility and decoherence.
+\section{Plan}
+\begin{itemize}
+    \item \textbf{Spring-Summer '26}: Readings on fundamental QEC (Gottesman). Implement code in parallel to reading. Become familiar with tools. Study also related concepts to QEC, such as physical noise. The relevant books are \textbf{Open Quantum Systems} (3-10, ex. 5 \& 8) by Breuer, \textbf{Quantum measurement Theory} (1-5 ex. 2, some on 7) by Wiseman, and \textbf{Quantum Noise} (3,5,7,8) by Gardiner.
+    \item \textbf{Early fall '26}: Make refinements on the RL model for QECC, and implement more codes, not just the BB code from FYS5429. Also, consider the use of error mitigation (LaRose). Might write the theory/methods along the way, but focus on numerical results as soon as possible. 
+    \item \textbf{Late fall-winter 2026/2027}: Do tests and validations on the set of decoders for different codes. Start applying the codes to simulated environments.
+    \item \textbf{Early spring '27}: Read and write theory/methods about QML, and implement QML algorithms (TBD which) on the decoder architecture. Benchmark with and without noise (simulated and hopefully on rea quantum hardware). Might also add QC algorithms if QML does not scale well. Goal: can we find specific decoder architectures which can correct errors on scaled systems, and empirical thresholds were this holds?
+    \item \textbf{Late spring-deadline} Finalize the report in latex with results and discussion as priority. Most theory and methods should be written along the way.
+\end{itemize}
+\end{document}
